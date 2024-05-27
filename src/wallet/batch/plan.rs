@@ -369,20 +369,28 @@ impl Plan {
     }
 
     let secp256k1 = Secp256k1::new();
-    let key_pair = UntweakedKeyPair::new(&secp256k1, &mut rand::thread_rng());
-    let (public_key, _parity) = XOnlyPublicKey::from_keypair(&key_pair);
+    let key_pair_1 = UntweakedKeyPair::new(&secp256k1, &mut rand::thread_rng());
+    let (public_key_1, _parity) = XOnlyPublicKey::from_keypair(&key_pair_1);
 
+    let key_pair_2 = UntweakedKeyPair::new(&secp256k1, &mut rand::thread_rng());
+    let (public_key_2, _parity) = XOnlyPublicKey::from_keypair(&key_pair_2);
+
+    // reveal_script 中存放的内容：[publickey, OP_CHECKSIG, 铭文信息*n]
     let reveal_script = Inscription::append_batch_reveal_script(
       &self.inscriptions,
       ScriptBuf::builder()
-        .push_slice(public_key.serialize())
-        .push_opcode(opcodes::all::OP_CHECKSIG),
+        .push_slice(public_key_1.serialize())
+        .push_opcode(opcodes::all::OP_CHECKSIG)
+          .push_slice(public_key_2.serialize())
+          .push_opcode(opcodes::all::OP_CHECKSIGADD)
+          .push_int(2)
+          .push_opcode(opcodes::all::OP_NUMEQUAL),
     );
 
     let taproot_spend_info = TaprootBuilder::new()
       .add_leaf(0, reveal_script.clone())
       .expect("adding leaf should work")
-      .finalize(&secp256k1, public_key)
+      .finalize(&secp256k1, public_key_1)
       .expect("finalizing taproot builder should work");
 
     let control_block = taproot_spend_info
@@ -594,10 +602,16 @@ impl Plan {
       )
       .expect("signature hash should compute");
 
-    let sig = secp256k1.sign_schnorr(
+    let sig_1 = secp256k1.sign_schnorr(
       &secp256k1::Message::from_slice(sighash.as_ref())
         .expect("should be cryptographically secure hash"),
-      &key_pair,
+      &key_pair_1,
+    );
+
+    let sig_2 = secp256k1.sign_schnorr(
+      &secp256k1::Message::from_slice(sighash.as_ref())
+          .expect("should be cryptographically secure hash"),
+      &key_pair_2,
     );
 
     let witness = sighash_cache
@@ -606,16 +620,24 @@ impl Plan {
 
     witness.push(
       Signature {
-        sig,
+        sig: sig_1,
         hash_ty: TapSighashType::Default,
       }
       .to_vec(),
     );
 
+    witness.push(
+      Signature {
+        sig: sig_2,
+        hash_ty: TapSighashType::Default,
+      }
+          .to_vec(),
+    );
+
     witness.push(reveal_script);
     witness.push(&control_block.serialize());
 
-    let recovery_key_pair = key_pair.tap_tweak(&secp256k1, taproot_spend_info.merkle_root());
+    let recovery_key_pair = key_pair_1.tap_tweak(&secp256k1, taproot_spend_info.merkle_root());
 
     let (x_only_pub_key, _parity) = recovery_key_pair.to_inner().x_only_public_key();
     assert_eq!(
@@ -741,14 +763,14 @@ impl Plan {
         // add dummy inscription witness for reveal input/commit output
         if current_index == commit_input_index {
           txin.witness.push(
-            Signature::from_slice(&[0; SCHNORR_SIGNATURE_SIZE])
+            Signature::from_slice(&[0; SCHNORR_SIGNATURE_SIZE*2])
               .unwrap()
               .to_vec(),
           );
           txin.witness.push(script);
           txin.witness.push(&control_block.serialize());
         } else {
-          txin.witness = Witness::from_slice(&[&[0; SCHNORR_SIGNATURE_SIZE]]);
+          txin.witness = Witness::from_slice(&[&[0; SCHNORR_SIGNATURE_SIZE*2]]);
         }
       }
 
