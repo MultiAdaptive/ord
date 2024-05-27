@@ -620,7 +620,7 @@ impl Plan {
 
     witness.push(
       Signature {
-        sig: sig_1,
+        sig: sig_2,
         hash_ty: TapSighashType::Default,
       }
       .to_vec(),
@@ -628,7 +628,7 @@ impl Plan {
 
     witness.push(
       Signature {
-        sig: sig_2,
+        sig: sig_1,
         hash_ty: TapSighashType::Default,
       }
           .to_vec(),
@@ -763,10 +763,17 @@ impl Plan {
         // add dummy inscription witness for reveal input/commit output
         if current_index == commit_input_index {
           txin.witness.push(
-            Signature::from_slice(&[0; SCHNORR_SIGNATURE_SIZE*2])
+            Signature::from_slice(&[0; SCHNORR_SIGNATURE_SIZE])
               .unwrap()
               .to_vec(),
           );
+
+          txin.witness.push(
+            Signature::from_slice(&[0; SCHNORR_SIGNATURE_SIZE])
+                .unwrap()
+                .to_vec(),
+          );
+
           txin.witness.push(script);
           txin.witness.push(&control_block.serialize());
         } else {
