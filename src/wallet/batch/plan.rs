@@ -381,10 +381,10 @@ impl Plan {
       ScriptBuf::builder()
         .push_slice(public_key_1.serialize())
         .push_opcode(opcodes::all::OP_CHECKSIG)
-          .push_slice(public_key_2.serialize())
-          .push_opcode(opcodes::all::OP_CHECKSIGADD)
-          .push_int(2)
-          .push_opcode(opcodes::all::OP_NUMEQUAL),
+        .push_slice(public_key_2.serialize())
+        .push_opcode(opcodes::all::OP_CHECKSIGADD)
+        .push_int(2)
+        .push_opcode(opcodes::all::OP_NUMEQUAL),
     );
 
     let taproot_spend_info = TaprootBuilder::new()
