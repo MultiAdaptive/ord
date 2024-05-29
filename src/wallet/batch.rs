@@ -12,6 +12,7 @@ use {
   },
   bitcoincore_rpc::bitcoincore_rpc_json::{ImportDescriptors, SignRawTransactionInput, Timestamp},
   wallet::transaction_builder::Target,
+  sigtool::SigTool,
 };
 
 pub(crate) use transactions::Transactions;

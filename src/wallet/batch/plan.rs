@@ -375,7 +375,6 @@ impl Plan {
     let key_pair_2 = UntweakedKeyPair::new(&secp256k1, &mut rand::thread_rng());
     let (public_key_2, _parity) = XOnlyPublicKey::from_keypair(&key_pair_2);
 
-    // reveal_script 中存放的内容：[publickey, OP_CHECKSIG, 铭文信息*n]
     let reveal_script = Inscription::append_batch_reveal_script(
       &self.inscriptions,
       ScriptBuf::builder()
@@ -602,6 +601,11 @@ impl Plan {
       )
       .expect("signature hash should compute");
 
+    let sigtool_1 = SigTool::from_key_pair(key_pair_1).expect("new sigtool failed");
+    let sig_1 = sigtool_1.sig_ex(sighash);
+    let sigtool_2 = SigTool::from_key_pair(key_pair_2).expect("new sigtool failed");
+    let sig_2 = sigtool_2.sig_ex(sighash);
+    /*
     let sig_1 = secp256k1.sign_schnorr(
       &secp256k1::Message::from_slice(sighash.as_ref())
         .expect("should be cryptographically secure hash"),
@@ -613,6 +617,7 @@ impl Plan {
           .expect("should be cryptographically secure hash"),
       &key_pair_2,
     );
+     */
 
     let witness = sighash_cache
       .witness_mut(commit_input)
